@@ -1,0 +1,303 @@
+<!doctype html>
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<title>CacheWarmer Dashboard</title>
+	<style type="text/css">
+			body {
+			}
+			h1 {
+				margin: 40px 0 30px;
+				color: gray;
+				text-align: center;
+			}
+			#terminal {
+				background-color: black;
+				border: 5px groove #C0D9D9;
+				width: 620px;
+				height: 360px;
+				margin: 0 auto;		
+				overflow: scroll;		
+			}
+			#controls {
+				text-align: center;
+				margin-bottom: 20px;
+			}
+			#controls button {
+				height: 25px;
+				width: 80px;
+				margin-right: 20px;				
+			}
+			#logger {
+				padding: 6px 8px 0;
+			}
+			#logger p {
+				color: green;
+				margin: .2em 0;
+			}
+			#logger p.cwthread {
+				color: wheat;
+			}
+			#legend {
+				color: gray;
+				width: 620px;
+				margin: 5px auto;
+				font-size: small;
+			}
+			#legend .green {
+				background-color: green;
+			}
+			#legend .wheat {
+				background-color: wheat;
+			}
+			#legend .code {
+				height: 8px;
+				width: 30px;
+				float: left;
+				margin: 3px 5px 0 0;
+			}
+	</style>	
+</head>
+<body onload="add();spwanBrowserThreads();">
+	<h1 id="head1">The CacheWarmer Dashboard</h1>
+	<div class="dashboard">
+		<div id="controls">
+			<button id="run" onclick="run();">Run</button>
+			<button id="pause" onclick="pause();">Pause</button>
+			<button id="stop" onclick="stop();">Stop</button>
+			<button id="add" onclick="add(1);">Add</button>
+			<button id="clr" onclick="clr();">Clear</button>
+		</div>
+		<div id="terminal">
+			<div id="logger">			 
+			</div>
+		</div>
+		<div id="legend">
+			<div>
+				<div class="code green"></div>
+				----> Browser Threads
+			</div>
+			<div>
+				<div class="code wheat"></div>
+				----> CacheWarmer Threads
+			</div>
+			<div id="thread">Click <a href="#" id="threadToggle" onclick="toggleBrowserThreads(); return false;">here</a> to <span id="threadStatus">stop</span> browser threads</div>			
+		</div>
+	</div>
+	<script src="cachewarmer.js"></script>
+	<script>
+		var cw = CacheWarmer,
+			resume,
+			bwThreadRefId,
+			bwThreadCount = 0,
+		    /**
+		     * The terminal controls.
+		     *
+		     * @object terminal
+		     * @public
+		     */			
+			terminal = {
+					elem: document.getElementById('terminal') || {},
+					logger: document.getElementById('logger') || {},
+					getTime: function() {
+						var date = new Date();
+						return date.getMonth() + '/' + 
+							   date.getDate() + '/' + 
+							   date.getFullYear() + ' ' + 
+							   date.getHours() + ':' + 
+							   date.getMinutes() + ':' + 
+							   date.getSeconds() + ' > ';
+					},
+					log: function(msg, isCW) {
+						var t = this,
+							prev = t.logger.innerHTML,
+							color = isCW?'cwthread':'bthread';
+						t.logger.innerHTML = prev + '<p class="' + color + '">'+ t.getTime() + msg + '...</p>';
+						t.elem.scrollTop = t.elem.scrollHeight;
+					},
+					clear: function() {
+						this.logger.innerHTML = '';
+					}
+				};	
+
+	    /**
+	     * Adds 10 functions/callback objects to the CacheWarmer queue
+	     *
+	     * @function add
+	     * @public
+	     */						
+		function add(log) {
+			var idleCount = 0;
+			cw.add(function() {
+					terminal.log("Task 1 executed after " + cw.defaults.timeout + " milliseconds", 1);
+				},
+				{
+					timeout: 1000,
+					callback: function() {
+								terminal.log("Task 2 executed after " + this.timeout + " milliseconds", 1);
+							}
+				},
+				{
+					timeout: 2000,
+					callback: function() {
+								terminal.log("Task 3 executed after " + this.timeout + " milliseconds", 1);
+							}
+				},
+				{
+					timeout: 300,
+					callback: function() {
+								terminal.log("Task 4 executed after " + this.timeout + " milliseconds", 1);
+							},
+					isIdle: function() {
+								var idle = idleCount++ == 4;
+								if(idle) {
+									terminal.log("Idle check for Task 4 passed", 1);
+									idleCount = 0;
+								} else {
+									terminal.log("Idle check for Task 4 failed count " + idleCount, 1);
+								}
+								return idle;
+							},
+					iterations: 10
+				},
+				{
+					timeout: 400,
+					callback: function() {
+								terminal.log("Task 5 executed after " + this.timeout + " milliseconds", 1);
+							}
+				},
+				{
+					callback: function() {
+								terminal.log("Task 6 executed after " + cw.defaults.timeout + " milliseconds", 1);	
+							}
+				},
+				{
+					timeout: 3000,
+					callback: function() {
+								terminal.log("Task 7 executed after " + this.timeout + " milliseconds", 1);
+							}
+				},
+				{
+					timeout: 1000,
+					callback: function() {
+								terminal.log("Task 8 executed after " + this.timeout + " milliseconds", 1);
+							},
+					isIdle: function() {
+								var idle = idleCount++ == 2;
+								if(idle) {
+									terminal.log("Idle check for Task 8 passed", 1);
+									idleCount = 0;
+								} else {
+									terminal.log("Idle check for Task 8 failed count " + idleCount, 1);
+								}
+								return idle;
+							},
+					iterations: 3
+				},
+				{
+					timeout: 700,
+					callback: function() {
+								terminal.log("Task 9 executed after " + this.timeout + " milliseconds", 1);
+							}
+				},
+				{
+					callback: function() {
+								terminal.log("Task 10 executed after " + this.timeout + " milliseconds", 1);
+							},
+					isIdle: function() {
+								var idle = idleCount++ == 10;
+								if(idle) {
+									terminal.log("Idle check for Task 10 passed", 1);
+									idleCount = 0;
+								} else {
+									terminal.log("Idle check for Task 10 failed count " + idleCount, 1);
+								}
+								return idle;
+							},
+					iterations: 10
+				});
+			log && terminal.log(cw.getQueueSize() + " Tasks added back to CacheWarmer Queue");
+		}
+
+	    /**
+	     * Run the CacheWarmer queue
+	     * Check the queue size before running
+	     * Logs appropriately 
+	     *
+	     * @function run
+	     * @public
+	     */							    
+		function run() {
+			if(!cw.getQueueSize()) {
+				terminal.log("CacheWarmer Queue is empty");
+				return;
+			}			
+			terminal.log("CacheWarmer " + (resume? "resumed": "started") + "("+ cw.getQueueSize() + " Tasks in Queue)");
+			resume = 1;			
+			cw.run();
+		}
+		
+	    /**
+	     * Pauses CacheWarmer and logs
+	     *
+	     * @function pause
+	     * @public
+	     */							    
+	    function pause() {
+			cw.pause();
+			terminal.log("CacheWarmer paused");
+		}
+
+	    /**
+	     * Stops CacheWarmer and logs
+	     *
+	     * @function stop
+	     * @public
+	     */							    	    
+		function stop() {
+			cw.stop();
+			terminal.log("CacheWarmer stopped");
+		}
+
+	    /**
+	     * Clears the terminal
+	     *
+	     * @function clr
+	     * @public
+	     */							    	    
+		function clr() {
+			terminal.clear();
+		}		
+
+	    /**
+	     * Spwans main browser threads in intervals of 1 second
+	     *
+	     * @function spwanBrowserThreads
+	     * @public
+	     */							    	    
+	    function spwanBrowserThreads() {
+			bwThreadRefId = setInterval(function(){
+				(bwThreadCount == 999999) && (bwThreadCount = 0); // Reset browser thread count if reached 999999 
+				terminal.log("Spawning browser thread " + ++bwThreadCount + " ");
+			}, 1000);
+		}
+
+	    /**
+	     * Toggles start/stop browser threads 
+	     * Triggered from anchor link in page
+	     *
+	     * @function toggleBrowserThreads
+	     * @public
+	     */							    	    	    
+	    function toggleBrowserThreads() {
+			if(bwThreadRefId) {
+				clearInterval(bwThreadRefId);
+				bwThreadRefId = null;
+			} else {
+				spwanBrowserThreads();
+			}
+			document.getElementById('threadStatus').innerHTML = bwThreadRefId? "stop": "start";
+		}
+	</script>
+</body>
+</html>
