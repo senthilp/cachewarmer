@@ -1,8 +1,10 @@
 /**
  * 
  * CacheWarmer is built on the concept of using browser idleness as a playground
- * to pre-fetch and cache resources that users will be needing later.
-
+ * to pre-fetch and cache resources that users will be needing later. If browser
+ * supports Web Workers then a worker thread is spawned which takes care of all
+ * the resource caching. 
+ * 
  * It is a JavaScript utility to pre-fetch and cache resources/data on the 
  * client side or execute JavaScript functions in small periodic chunks 
  * without penalizing UI responsiveness or user interactions (similar to webwrokers, 
@@ -18,8 +20,13 @@
  * same thread is shared between UI rendering and interactions. The CacheWarmer 
  * utility simulates a multi-threaded browser environment using simple timeout
  * techniques and assures the UI thread is properly shared between user 
- * interactions & warmup and hence making the browser always responsive.
-
+ * interactions & warmup and hence making the browser always responsive. 
+ * 
+ * CacheWarmer also detects the availabilty of Web Workers and uses a worker thread
+ * to achieve JS multi-threading without interfering with UI responsiveness. With 
+ * more browsers supporting workers that would be an ideal elegant solution going
+ * forward. Please refer to webworker.js for more details.
+ *
  * Functions in CacheWarmer are triggered only when an idle check passes and this
  * idle check function is abstracted out in the utility to be overridden by the 
  * implementing application (as the perception of idleness is different for  
@@ -33,6 +40,7 @@
  * 		       by the implementer
  * 3. iterations - 2, the max number of iterations the utility will try if isIdle 
  * 			       function returns false 
+ * 4. avoidWorker - false, Flag to indicate that Web Workers should NOT be used
  *
  * NOTE: The CacheWarmer is no guaranteed to run always. When the idle check fails 
  * over all iterations then the cachewarmer will be stopped and queue cleared
@@ -42,7 +50,10 @@
  * 
  */
 var CacheWarmer = function() {
-	var queue = [], 
+	var isWorkerEnabled = typeof Worker !== "undefined" && 
+						  // Mozilla bug check https://bugzilla.mozilla.org/show_bug.cgi?id=683280
+						  !(location.href.match(/localhost/) && navigator.userAgent.match(/Firefox/)) ,
+		queue = [], 
 		isRunning,
 		isPaused;
 
@@ -67,32 +78,54 @@ var CacheWarmer = function() {
 				cbObj = queue[0], // Retrieving callback object from top of queue
 				timeout = cbObj.timeout || t.defaults.timeout, // Deciding the time interval
 				isIdle = cbObj.isIdle || t.defaults.isIdle, // Deciding the idle function
-				refId; // Reference ID of timeout
-			
+				useWorker = isWorkerEnabled && !(cbObj.avoidWorker || t.defaults.avoidWorker), // Checking of web workers can be used
+				refId, // Reference ID of timeout
+				worker; // Worker reference
+				
 			// Overriding iterations attribute in callback object itself
 			cbObj.iterations = cbObj.iterations || t.defaults.iterations;
 			
-			refId = setTimeout(function() {
-						// Clear the timeout first
-						clearTimeout(refId);
-						// Checking for paused state again
-						if(!isPaused) { 
-							if(isIdle()) { // Check for idleness
-								// Shift queue
-								queue.shift();
-								// execute callback
-								cbObj.callback && cbObj.callback();
-								// call the _execute function recursively
-								t._execute();
-							} else if(--cbObj.iterations > 0) { // Check if iterations left
-								// Continue executing the queue at the same position
-								t._execute();
-							} else { // Browser not idle & iterations ran out
-								// Stop the queue
-								t.stop();
+			// Check for worker first else do timeouts
+			if(useWorker) {
+				worker = new Worker("webworker.js");
+				worker.postMessage("fetch");
+				worker.onmessage = function(event) {
+					if(event.data === "success") {
+						// execute callback
+						cbObj.callback && cbObj.callback();
+						// continue the queue
+						queue.shift();
+						// call the _execute function recursively
+						t._execute();
+					}
+				};				
+				worker.onerror = function(error) {
+					// execute error callback if any
+					cbObj.errCallback && cbObj.errCallback(); 
+				};
+			} else {		
+				refId = setTimeout(function() {
+							// Clear the timeout first
+							clearTimeout(refId);
+							// Checking for paused state again
+							if(!isPaused) { 
+								if(isIdle()) { // Check for idleness
+									// Shift queue
+									queue.shift();
+									// execute callback
+									cbObj.callback && cbObj.callback();
+									// call the _execute function recursively
+									t._execute();
+								} else if(--cbObj.iterations > 0) { // Check if iterations left
+									// Continue executing the queue at the same position
+									t._execute();
+								} else { // Browser not idle & iterations ran out
+									// Stop the queue
+									t.stop();
+								}
 							}
-						}
-					}, timeout);				
+						}, timeout);	
+			}
 		},
 		
 	    /**
@@ -129,7 +162,15 @@ var CacheWarmer = function() {
 		     * @int iterations
 		     * @public
 		     */
-			iterations   : 2
+			iterations   : 2,
+		    /**
+		     * Flag to indicate that Web Workers should NOT be used. Default value
+			 * is false unless applications specifically want to override
+		     *
+		     * @boolean avoidWroker
+		     * @public
+		     */
+			avoidWorker	 : false
 		},
 
 	    /**

@@ -110,9 +110,17 @@
 					},
 					log: function(msg, isCW) {
 						var t = this,
-							prev = t.logger.innerHTML,
-							color = isCW?'cwthread':'bthread';
-						t.logger.innerHTML = prev + '<p class="' + color + '">'+ t.getTime() + msg + '...</p>';
+							logger = t.logger,						
+							color = isCW?'cwthread':'bthread',
+							markup = '<p class="' + color + '">'+ t.getTime() + msg + '...</p>';
+
+						// Check if adjacent HTML is supported
+						if(logger.insertAdjacentHTML) {
+							logger.insertAdjacentHTML("beforeend", markup);
+						} else {
+							logger.innerHTML = logger.innerHTML + markup;
+						}
+						// Always have the scroll at the bottom
 						t.elem.scrollTop = t.elem.scrollHeight;
 					},
 					clear: function() {
@@ -173,8 +181,9 @@
 				},
 				{
 					timeout: 3000,
+					avoidWorker: true,
 					callback: function() {
-								terminal.log("Task 7 executed after " + this.timeout + " milliseconds", 1);
+								terminal.log("Task 7 (avoids Web Workers) executed after " + this.timeout + " milliseconds", 1);
 							}
 				},
 				{
