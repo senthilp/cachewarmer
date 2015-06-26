@@ -1,6 +1,4 @@
--------------------------------------------------------------------------------
- About
--------------------------------------------------------------------------------
+# Cachewarmer
 CacheWarmer is built on the concept of using browser idleness as a playground
 to pre-fetch and cache resources that users will be needing later. If browser
 supports Web Workers then a worker thread is spawned which takes care of all
@@ -35,6 +33,7 @@ different applications).
 
 The CacheWarmer has 3 default properties which can be overridden by the 
 application
+
 1. timeout - 50 ms, all function in CacheWarmer queue are time sliced with 50ms
 			 intervals
 2. isIdle - Abstract function which always returns true, needs to be overridden
@@ -43,12 +42,12 @@ application
 			    function returns false
 4. avoidWorker - false, Flag to indicate that Web Workers should NOT be used
 
-Usage:
+## Usage
 The complete usage and demostration of cachewarmer is illustrated in 
 dashboard.html (https://github.com/senthilp/cachewarmer/blob/master/dashboard.html).
 It also provides an interactive tool to play arround the utility
 
-Notes:
+## Notes
 1. CacheWarmer is loosely based on YUI Async Queue http://developer.yahoo.com/yui/3/async-queue/
 2. Webworkers support is TODO action item in the utility
 3. The CacheWarmer is no guaranteed to run always. When the idle check fails over all iterations 
