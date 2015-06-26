@@ -1,4 +1,4 @@
-# Cachewarmer
+# CacheWarmer
 CacheWarmer is built on the concept of using browser idleness as a playground
 to pre-fetch and cache resources that users will be needing later. If browser
 supports Web Workers then a worker thread is spawned which takes care of all
@@ -34,13 +34,13 @@ different applications).
 The CacheWarmer has 3 default properties which can be overridden by the 
 application
 
-1. timeout - 50 ms, all function in CacheWarmer queue are time sliced with 50ms
+1. `timeout` - 50 ms, all function in CacheWarmer queue are time sliced with 50ms
 			 intervals
-2. isIdle - Abstract function which always returns true, needs to be overridden
+2. `isIdle` - Abstract function which always returns true, needs to be overridden
 		    by the implementer
-3. iterations - 2, the max number of iterations the utility will try if isIdle 
+3. `iterations` - 2, the max number of iterations the utility will try if isIdle 
 			    function returns false
-4. avoidWorker - false, Flag to indicate that Web Workers should NOT be used
+4. `avoidWorker` - false, Flag to indicate that Web Workers should NOT be used
 
 ## Usage
 The complete usage and demostration of cachewarmer is illustrated in 
